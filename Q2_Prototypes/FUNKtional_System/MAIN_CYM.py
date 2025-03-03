@@ -1,5 +1,6 @@
 import cv2
 # import csv
+from collections import deque
 import depthai as dai
 import numpy as np
 import serial
@@ -13,6 +14,7 @@ from utils import smooth_keypoints
 from camera_config import P1, P2
 from esp_link import espStatus
 from robot_sim import initialize_simulation, command_sphere_position, close_simulation
+from head_tracking import head_tracker
 
 # Shared frame storage for both cameras
 frames = [None, None]
@@ -28,6 +30,8 @@ c2_magenta = np.zeros((2,1))
 
 # Global variable for the latest 3D points
 current_3d_points = np.zeros((3, 3))
+head_pitch = 0 # pose of tracked head
+head_yaw = 0 # pose of tracked head
 
 # Global variable for input devices
 pedal_engaged = None
@@ -193,18 +197,37 @@ def triangulate():
 
 # Function to visualize the 3D point with fixed axes
 def visualize_3d():
-    initialize_simulation()
+    global head_pitch
+    initialize_simulation(head_pitch, head_yaw)
     while True:
         with lock: 
             if pedal_engaged == 1:
-                command_sphere_position(current_3d_points)
+                command_sphere_position(current_3d_points, head_pitch, head_yaw)
         time.sleep(0.01)
+
+# Head tracking
+def head_track():
+    global head_yaw, head_pitch
+    yaw_window = deque(maxlen=20)
+    pitch_window = deque(maxlen=10)
+    for yaw, pitch in head_tracker():
+        curr_yaw = 0.75*yaw
+        curr_pitch = -1.5*pitch - 30
+
+        yaw_window.append(curr_yaw)
+        pitch_window.append(curr_pitch)
+
+        smoothed_yaw = sum(yaw_window) / len(yaw_window)
+        smoothed_pitch = sum(pitch_window) / len(pitch_window)
+        with lock:
+            head_yaw = smoothed_yaw
+            head_pitch = smoothed_pitch
 
 # Serial link to esp
 def serial_in():
     global pedal_engaged, touch_engaged, pot_value
 
-    ser = serial.Serial('COM4',9600, timeout = 0.25) # for windows comx is the port but on linux this is /dev/ttyusbx 
+    ser = serial.Serial('COM9',9600, timeout = 0.25) # for windows comx is the port but on linux this is /dev/ttyusbx 
     time.sleep(2) #wait for serial port to open and connection to be established 
 
     while True:
@@ -265,11 +288,13 @@ else:
 
     # Start triangulation and visualization threads
     triangulation_thread = threading.Thread(target=triangulate)
+    head_tracking_thread = threading.Thread(target=head_track)
     visualization_thread = threading.Thread(target=visualize_3d)
     serial_thread = threading.Thread(target = serial_in)
     GUI_thread = threading.Thread(target = update_gui)
 
     triangulation_thread.start()
+    head_tracking_thread.start()
     visualization_thread.start()
     serial_thread.start()
     GUI_thread.start()

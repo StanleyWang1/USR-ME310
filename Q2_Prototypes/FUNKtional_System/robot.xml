@@ -15,6 +15,10 @@
         <texture name="body" type="cube" builtin="flat" mark="cross" width="128" height="128" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1"/>
         <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
         <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance="0"/>
+    
+        <mesh name="base_mesh" file="meshes/base.stl"/>
+        <mesh name="left_mesh" file="meshes/left.stl"/>
+        <mesh name="right_mesh" file="meshes/right.stl"/>
     </asset>
 
     <worldbody>
@@ -32,6 +36,21 @@
             <joint name="slider1_z" type="slide" axis="0 0 1" damping="10"/>
             <geom name="sphere1_geom" type="sphere" size="0.0075" rgba="1 0 0 1" friction="10 1 1" contype="1" condim="3" solref=".005 1"/>
             <site name="site_sphere1" pos="0 0 0" size="0.001" type="sphere" rgba="1 1 1 1"/>
+             
+            <body name="ball_body" pos="0 0 0">
+                <joint name="ball_joint" type="ball" pos="0 0 0"/>
+                <geom type="mesh" mesh="base_mesh" pos="0 0 0" rgba="1 0.2 0.2 1"/>
+                <body name="left_jaw" pos="0 0 0">
+                    <joint name="left_jaw_pin" type="hinge" axis="0 0 1"/>
+                    <geom type="mesh" mesh="left_mesh" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
+                    <site name="left_jaw_site" pos="0 0.075 0" size="0.001" type="sphere" rgba="1 1 1 1"/>
+                </body>
+                <body name="right_jaw" pos="0 0 0">
+                    <joint name="right_jaw_pin" type="hinge" axis="0 0 1"/>
+                    <geom type="mesh" mesh="right_mesh" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
+                    <site name="right_jaw_site" pos="0 0.075 0" size="0.001" type="sphere" rgba="1 1 1 1"/>
+                </body>
+            </body>
         </body>
         <body name="sphere2" pos="0 0 0">
             <!-- Slider joints for x, y, z movement -->
@@ -93,6 +112,15 @@
         <spatial name="tendon2">
             <site site="site_sphere1"/>
             <site site="site_sphere3"/>
+        </spatial>
+
+        <spatial name="left_jaw_lock" springlength="0.01" stiffness="1000">
+            <site site="site_sphere2"/>
+            <site site="left_jaw_site"/>
+        </spatial>
+        <spatial name="right_jaw_lock" springlength="0.01" stiffness="1000">
+            <site site="site_sphere3"/>
+            <site site="right_jaw_site"/>
         </spatial>
     </tendon>
 </mujoco>

@@ -12,7 +12,7 @@ data = None
 y_offset = -0.05
 z_offset = -0.1 # [m]
 
-def initialize_simulation():
+def initialize_simulation(head_pitch, head_yaw):
     """
     Initializes the MuJoCo model, data, and viewer. Called only once.
     """
@@ -26,8 +26,11 @@ def initialize_simulation():
     # Launch the passive viewer
     viewer = launch_passive(model, data)
 
+    viewer.cam.azimuth = 270+head_yaw   # Rotation around the Z-axis (degrees)
+    viewer.cam.elevation = head_pitch  # Up/Down tilt angle
+    viewer.cam.distance = 1.0  # Distance from the model
 
-def command_sphere_position(point_positions):
+def command_sphere_position(point_positions, head_pitch, head_yaw):
     """
     Commands the sphere to specified x, y, z positions using slider joints.
     The viewer is synchronized after each step.
@@ -56,6 +59,11 @@ def command_sphere_position(point_positions):
     data.ctrl[8] = point_positions[2][2] + z_offset  # Target position for z-axis
     # Step the simulation and sync the viewer
     mujoco.mj_step(model, data)
+    
+    viewer.cam.azimuth = 270+head_yaw   # Rotation around the Z-axis (degrees)
+    viewer.cam.elevation = head_pitch  # Up/Down tilt angle
+    viewer.cam.distance = 1.0  # Distance from the model
+
     viewer.sync()
 
 
