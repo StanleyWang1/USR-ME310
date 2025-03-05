@@ -1,20 +1,23 @@
-import cv2
-# import csv
 from collections import deque
-import depthai as dai
-import numpy as np
 import serial
-import time
 import threading
+import time
+
+import cv2
+import depthai as dai
+import keyboard
+import numpy as np
+import matplotlib as mpl
+mpl.rcParams['toolbar'] = 'None'
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from mpl_toolkits.mplot3d import Axes3D
 
-from utils import smooth_keypoints
 from camera_config import P1, P2
 from esp_link import espStatus
-from robot_sim import initialize_simulation, command_sphere_position, close_simulation
 from head_tracking import head_tracker
+from robot_sim import initialize_simulation, command_sphere_position
+
+import subprocess
 
 # Shared frame storage for both cameras
 frames = [None, None]
@@ -30,17 +33,28 @@ c2_magenta = np.zeros((2,1))
 
 # Global variable for the latest 3D points
 current_3d_points = np.zeros((3, 3))
-head_pitch = 0 # pose of tracked head
-head_yaw = 0 # pose of tracked head
+
+# Global variables for tracked head pose
+head_pitch = 0 
+head_yaw = 0 
+
+# Global variable for surgeon identity
+identity_dict = {
+    "0013885379" : {"name" : "Dr. Mathusha Rao", "color" : "darkgoldenrod"},
+    "0013912256" : {"name" : "Dr. Nate Lim", "color" : "mediumslateblue"},
+    "0013906125" : {"name" : "Dr. Jesus Tejeda", "color" : "darkturquoise"}
+}
+current_user = ""
 
 # Global variable for input devices
 pedal_engaged = None
 touch_engaged = None
-pot_value = None
 
 lock = threading.Lock()
 
-# Camera processing function
+## ----------------------------------------------------------------------------------------------------
+# Luxonis Oak-D S2 Camera Processing
+## ----------------------------------------------------------------------------------------------------
 def process_camera(device_info, index):
     global c1_cyan, c2_cyan, c1_yellow, c2_yellow, c1_magenta, c2_magenta
 
@@ -153,6 +167,9 @@ def process_camera(device_info, index):
             # Store the annotated frame for display
             frames[index] = annotated_frame
 
+## ----------------------------------------------------------------------------------------------------
+# Triangulate 3D Coordinates of known markers from 2D pixel coordinates
+## ----------------------------------------------------------------------------------------------------
 def triangulate():
     global P1, P2, c1_cyan, c2_cyan, c1_yellow, c2_yellow, c1_magenta, c2_magenta, current_3d_points
 
@@ -195,18 +212,22 @@ def triangulate():
                 current_3d_points[i] = 0.5*current_3d_points[i] + 0.5*X_world.reshape(1, 3)
                 # current_3d_points[i] = X_world.reshape(1,3)
 
-# Function to visualize the 3D point with fixed axes
+## ----------------------------------------------------------------------------------------------------
+# Use MuJuCo to visualize the tracked 3d points with head-tracked camera reorientation
+## ----------------------------------------------------------------------------------------------------
 def visualize_3d():
-    global head_pitch
+    global head_pitch, head_yaw
     initialize_simulation(head_pitch, head_yaw)
     while True:
         # with lock: 
         #     if pedal_engaged == 1:
-        #         command_sphere_position(current_3d_points, head_pitch, head_yaw)
+        #         command_robot_pose(current_3d_points, np.array([0.0, 0.01, 0.0]), head_pitch, head_yaw)
         command_sphere_position(current_3d_points, head_pitch, head_yaw)
-        time.sleep(0.01)
+        time.sleep(0.005)
 
-# Head tracking
+## ----------------------------------------------------------------------------------------------------
+# Use standard camera feed (webcam) to track pose of user's head
+## ----------------------------------------------------------------------------------------------------
 def head_track():
     global head_yaw, head_pitch
     yaw_window = deque(maxlen=20)
@@ -224,9 +245,11 @@ def head_track():
             head_yaw = smoothed_yaw
             head_pitch = smoothed_pitch
 
-# Serial link to esp
+## ----------------------------------------------------------------------------------------------------
+# USB serial link with microcontroller device
+## ----------------------------------------------------------------------------------------------------
 def serial_in():
-    global pedal_engaged, touch_engaged, pot_value
+    global pedal_engaged, touch_engaged
 
     ser = serial.Serial('COM9',9600, timeout = 0.25) # for windows comx is the port but on linux this is /dev/ttyusbx 
     time.sleep(2) #wait for serial port to open and connection to be established 
@@ -235,44 +258,97 @@ def serial_in():
         if ser.in_waiting > 0:
             deviceList = espStatus(ser)
             pedal1 = deviceList["Pedal 1"] 
-            # pedal2 = deviceList["Pedal y"]
             touch = deviceList["touch"]
-            potentiometer = deviceList["pot"]
+            # potentiometer = deviceList["pot"]
         with lock:
             pedal_engaged = int(pedal1[0])
             touch_engaged = int(touch[0])
-            pot_value = int(potentiometer[0])
+            # pot_value = int(potentiometer[0])
         # print(pedal_engaged)
         time.sleep(0.01)
 
+## ----------------------------------------------------------------------------------------------------
+# Drive GUI for surgical interface
+## ----------------------------------------------------------------------------------------------------
 def update_gui():
-    global pedal_engaged, touch_engaged
-    fig, ax = plt.subplots(figsize=(6, 8))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
+    """
+    Displays a thin horizontal bar with the text "Hello Dr. ____" where the name and bar color
+    are specified by the global `identity_dict` using the `current_user` key.
+    If the current user is not found, defaults to "Unknown" with a gray background.
+    """
+    global current_user, identity_dict, lock
+
+    # Create a figure with a thin horizontal bar
+    fig, ax = plt.subplots(figsize=(10, 0.5))
+    ax.set_position([0, 0, 1, 1])  # Set axes to fill the entire figure
+    ax.set_xlim(0, 8)
+    ax.set_ylim(0, 1)
     ax.axis('off')
+    
+    # manager = plt.get_current_fig_manager()
+    # manager.window.overrideredirect(True)
 
-    # Pedal rectangle and label
-    pedal_rect = Rectangle((1, 6), 8, 3, color='red', ec='black', lw=2)
-    ax.add_patch(pedal_rect)
-    ax.text(5, 7.5, "PEDAL", color='white', ha='center', va='center', fontsize=30, weight='bold')
-
-    # Touch rectangle and label
-    touch_rect = Rectangle((1, 1), 8, 3, color='red', ec='black', lw=2)
-    ax.add_patch(touch_rect)
-    ax.text(5, 2.5, "TOUCH", color='white', ha='center', va='center', fontsize=30, weight='bold')
-
-    plt.ion()
+    plt.ion()  # Enable interactive mode
     plt.show()
 
     while True:
         with lock:
-            pedal_rect.set_color('green' if pedal_engaged == 1 else 'red')
-            touch_rect.set_color('green' if touch_engaged == 1 else 'red')
+            user = current_user
         
+        # Look up user details from identity_dict; default if not found.
+        if user in identity_dict:
+            name = identity_dict[user]["name"]
+            color = identity_dict[user]["color"]
+            title_msg = f"Hello {name}"
+        else:
+            color = "gray"
+            title_msg = "System Inactive"
+
+        # Clear the axes and reset limits and appearance.
+        ax.cla()
+        ax.set_xlim(0, 8)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
+        
+        # Draw the horizontal rectangle bar with the background color.
+        rect = Rectangle((0, 0), 8, 1, color=color)
+        ax.add_patch(rect)
+        
+        # Add centered text with a greeting.
+        ax.text(4, 0.5, title_msg, ha='center', va='center', fontsize=20, color="white")
+        
+        # Update the figure
         fig.canvas.draw()
         fig.canvas.flush_events()
-        time.sleep(0.01)
+        time.sleep(0.1)
+
+## ----------------------------------------------------------------------------------------------------
+# Drive GUI for surgical interface
+## ----------------------------------------------------------------------------------------------------
+def read_RFID():
+    """
+    Listens globally for RFID tag input (emulated as keyboard events).
+    The RFID reader types the tag and sends 'enter' at the end.
+    When 'enter' is detected, the accumulated tag is stored in current_user.
+    """
+    global current_user, NateLimGreeting
+    tag = ""
+    while True:
+        event = keyboard.read_event()  # Blocks until an event occurs
+        if event.event_type == keyboard.KEY_DOWN:
+            if event.name == "enter":
+                with lock:
+                    current_user = tag
+                print("RFID Tag Read:", tag)
+                if tag == "0013912256":
+                    # play(NateLimGreeting)
+                    subprocess.run(["ffplay", "-nodisp", "-autoexit", "./Q2_Prototypes/FUNCTIONAL_SYSTEM/NateLim.m4a"])
+                tag = ""
+            else:
+                # Append single-character key names to tag.
+                # This assumes the RFID sends characters like '1','2', etc.
+                if len(event.name) == 1:
+                    tag += event.name
 
 # Get connected devices
 available_devices = dai.Device.getAllAvailableDevices()
@@ -291,14 +367,16 @@ else:
     triangulation_thread = threading.Thread(target=triangulate)
     head_tracking_thread = threading.Thread(target=head_track)
     visualization_thread = threading.Thread(target=visualize_3d)
-    serial_thread = threading.Thread(target = serial_in)
+    # serial_thread = threading.Thread(target = serial_in)
     GUI_thread = threading.Thread(target = update_gui)
+    RFID_thread = threading.Thread(target=read_RFID)
 
     triangulation_thread.start()
     head_tracking_thread.start()
     visualization_thread.start()
-    serial_thread.start()
+    # serial_thread.start()
     GUI_thread.start()
+    RFID_thread.start()
 
     # Display loop
     while True:
