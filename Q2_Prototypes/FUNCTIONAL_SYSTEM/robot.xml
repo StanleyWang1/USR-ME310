@@ -110,7 +110,7 @@
         </spatial>
 
         <spatial name="tendon2">
-            <site site="site_sphere1"/>
+            <site site="site_sphere2"/>
             <site site="site_sphere3"/>
         </spatial>
 

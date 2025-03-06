@@ -12,27 +12,31 @@ mpl.rcParams['toolbar'] = 'None'
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+from audio_driver import play_audio
 from camera_config import P1, P2
 from esp_link import espStatus
 from head_tracking import head_tracker
-from robot_sim import initialize_simulation, command_sphere_position
-
-import subprocess
+from forcep_sim import initialize_simulation, command_pose
 
 # Shared frame storage for both cameras
 frames = [None, None]
 fps_values = [0.0, 0.0]
 
 # Global variables to store the most recent blob coordinates
-c1_cyan = np.zeros((2,1))
-c2_cyan = np.zeros((2,1))
-c1_yellow = np.zeros((2,1))
-c2_yellow = np.zeros((2,1))
-c1_magenta = np.zeros((2,1))
-c2_magenta = np.zeros((2,1))
+cam1_point1 = np.zeros((2,1))
+cam2_point1 = np.zeros((2,1))
+cam1_point2 = np.zeros((2,1))
+cam2_point2 = np.zeros((2,1))
+cam1_point3 = np.zeros((2,1))
+cam2_point3 = np.zeros((2,1))
 
 # Global variable for the latest 3D points
 current_3d_points = np.zeros((3, 3))
+
+# Mapped 3D gripper control coordinates
+gripper_position = np.zeros((3,))
+gripper_orientation = np.zeros((3,))
+gripper_grasp = 0
 
 # Global variables for tracked head pose
 head_pitch = 0 
@@ -40,15 +44,16 @@ head_yaw = 0
 
 # Global variable for surgeon identity
 identity_dict = {
-    "0013885379" : {"name" : "Dr. Mathusha Rao", "color" : "darkgoldenrod"},
-    "0013912256" : {"name" : "Dr. Nate Lim", "color" : "mediumslateblue"},
-    "0013906125" : {"name" : "Dr. Jesus Tejeda", "color" : "darkturquoise"}
+    "0013885379" : {"name" : "Dr. Stanley Wang", "color" : "darkgoldenrod", "audio" : "./Q2_Prototypes/FUNCTIONAL_SYSTEM/audio_files/Stanley.mp3"},
+    "0013912256" : {"name" : "Dr. Nate Lim", "color" : "mediumslateblue", "audio" : "./Q2_Prototypes/FUNCTIONAL_SYSTEM/audio_files/Nate.mp3"},
+    "0013906125" : {"name" : "Dr. Jesus Tejeda", "color" : "darkturquoise", "audio" : "./Q2_Prototypes/FUNCTIONAL_SYSTEM/audio_files/Jesus.mp3"}
 }
 current_user = ""
 
 # Global variable for input devices
-pedal_engaged = None
+button_engaged = None
 touch_engaged = None
+relay_engaged = False
 
 lock = threading.Lock()
 
@@ -56,7 +61,7 @@ lock = threading.Lock()
 # Luxonis Oak-D S2 Camera Processing
 ## ----------------------------------------------------------------------------------------------------
 def process_camera(device_info, index):
-    global c1_cyan, c2_cyan, c1_yellow, c2_yellow, c1_magenta, c2_magenta
+    global cam1_point1, cam2_point1, cam1_point2, cam2_point2, cam1_point3, cam2_point3
 
     # Create pipeline
     pipeline = dai.Pipeline()
@@ -69,7 +74,7 @@ def process_camera(device_info, index):
     # Camera properties
     camRgb.setPreviewSize(640, 360)
     camRgb.setFps(60)
-    camRgb.initialControl.setManualExposure(1000, 100)
+    camRgb.initialControl.setManualExposure(500, 100)
     focus_value = 100
     camRgb.initialControl.setManualFocus(focus_value)
     camRgb.initialControl.setManualWhiteBalance(5500)  # Set to desired color temperature
@@ -106,7 +111,7 @@ def process_camera(device_info, index):
         while True:
             inRgb = qRgb.get()
             frame = inRgb.getCvFrame()
-            frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            # frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
             keypoints = blob_detector.detect(frame)
             hue_vals = np.zeros(3)
@@ -115,32 +120,53 @@ def process_camera(device_info, index):
                 coordinates = [(int(kp.pt[0]), int(kp.pt[1])) for kp in keypoints[:3]]
                 for i, (x, y) in enumerate(coordinates):
                     # Calculate blob hue
+                    # size = int(keypoints[i].size / 2)
+                    # roi = frame_hsv[max(0, y - size):min(frame_hsv.shape[0], y + size), max(0, x - size):min(frame_hsv.shape[1], x + size)]
+                    # hue = cv2.mean(roi)[0] if roi.size > 0 else 0
+                    # hue_vals[i] = hue
+
+                    # Calculate ROI boundaries based on keypoint size
                     size = int(keypoints[i].size / 2)
-                    roi = frame_hsv[max(0, y - size):min(frame_hsv.shape[0], y + size), max(0, x - size):min(frame_hsv.shape[1], x + size)]
-                    hue = cv2.mean(roi)[0] if roi.size > 0 else 0
-                    hue_vals[i] = hue
+                    y_start = max(0, y - size)
+                    y_end = min(frame.shape[0], y + size)
+                    x_start = max(0, x - size)
+                    x_end = min(frame.shape[1], x + size)
+                    roi = frame[y_start:y_end, x_start:x_end]
+
+                    if roi.size > 0:
+                        # Compute the average color in the ROI.
+                        # Note: cv2.mean returns (R, G, B, A) if the image has 3 channels.
+                        avg_color_rgb = cv2.mean(roi)[:3]
+                        # Create a 1x1 image with this average color.
+                        avg_color_img = np.uint8([[avg_color_rgb]])
+                        # Convert the average color to HSV.
+                        # Use COLOR_RGB2HSV if your frame is in RGB.
+                        avg_color_hsv = cv2.cvtColor(avg_color_img, cv2.COLOR_RGB2HSV)
+                        hue = avg_color_hsv[0, 0, 0]
+                        hue_vals[i] = hue
+
                     # Update corresponding pixel coordinate
-                    if hue < 50: # blue
-                        if index == 1:
+                    if hue < 30: # blue
+                        if index == 0:
                             with lock:
-                               c1_cyan = np.array([[x], [y]]);
+                               cam1_point1 = np.array([[x], [y]]);
                         else:
                             with lock:
-                               c2_cyan = np.array([[x], [y]]);
+                               cam2_point1 = np.array([[x], [y]]);
                     elif hue < 100:
-                        if index == 1:
+                        if index == 0:
                             with lock:
-                                c1_yellow = np.array([[x], [y]]);
+                                cam1_point2 = np.array([[x], [y]]);
                         else:
                             with lock:
-                                c2_yellow = np.array([[x], [y]]);
+                                cam2_point2 = np.array([[x], [y]]);
                     else:
-                        if index == 1:
+                        if index == 0:
                             with lock:
-                                c1_magenta = np.array([[x], [y]]);
+                                cam1_point3 = np.array([[x], [y]]);
                         else:
                             with lock:
-                                c2_magenta = np.array([[x], [y]]);
+                                cam2_point3 = np.array([[x], [y]]);
 
             # Calculate FPS
             frame_count += 1
@@ -159,7 +185,7 @@ def process_camera(device_info, index):
             for i, kp in enumerate(keypoints):
                 if i < 3:
                     x, y = int(kp.pt[0]), int(kp.pt[1])
-                    color_bgr = tuple(int(c) for c in cv2.cvtColor(np.uint8([[[int(hue_vals[i]), 255, 255]]]), cv2.COLOR_HSV2RGB)[0][0])
+                    color_bgr = tuple(int(c) for c in cv2.cvtColor(np.uint8([[[int(hue_vals[i]), 255, 255]]]), cv2.COLOR_HSV2BGR)[0][0])
                     cv2.circle(annotated_frame, (x, y), 5, color_bgr, -1)
                     # cv2.putText(annotated_frame, f"({x}, {y}) @ H{hue_vals[i]}", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr, 1)
                     cv2.putText(annotated_frame, f"H = {int(hue_vals[i])}", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr, 1)
@@ -171,13 +197,13 @@ def process_camera(device_info, index):
 # Triangulate 3D Coordinates of known markers from 2D pixel coordinates
 ## ----------------------------------------------------------------------------------------------------
 def triangulate():
-    global P1, P2, c1_cyan, c2_cyan, c1_yellow, c2_yellow, c1_magenta, c2_magenta, current_3d_points
+    global P1, P2, cam1_point1, cam2_point1, cam1_point2, cam2_point2, cam1_point3, cam2_point3, current_3d_points
 
     while True:
         with lock:
             # Process each 3D point (cyan, yellow, magenta) separately
-            points_2d_camera1 = [c1_cyan, c1_yellow, c1_magenta]
-            points_2d_camera2 = [c2_cyan, c2_yellow, c2_magenta]
+            points_2d_camera1 = [cam1_point1, cam1_point2, cam1_point3]
+            points_2d_camera2 = [cam2_point1, cam2_point2, cam2_point3]
         #     engaged = pedal_engaged
         # if engaged == 1:
         for i in range(3):
@@ -209,20 +235,72 @@ def triangulate():
 
             # Step 6: Store the result in the current 3D points
             with lock:
-                current_3d_points[i] = 0.5*current_3d_points[i] + 0.5*X_world.reshape(1, 3)
+                current_3d_points[i] = 0.5*current_3d_points[i] + 0.5*X_world.reshape(1, 3) # average with prior point to add slight smoothing
                 # current_3d_points[i] = X_world.reshape(1,3)
+
+## ----------------------------------------------------------------------------------------------------
+# Triangulate 3D Coordinates of known markers from 2D pixel coordinates
+## ----------------------------------------------------------------------------------------------------
+def calculate_gripper_pose():
+    global current_3d_points, gripper_position, gripper_orientation, gripper_grasp, touched_engaged
+
+    def angle_from_y_axis(gripper_pose):
+        x, y = gripper_pose[0], gripper_pose[1]
+        angle = np.arctan2(x, y)
+        return angle
+    
+    def angle_from_xy_plane(gripper_pose):
+        xy_norm = np.linalg.norm(gripper_pose[:2])
+        angle = np.arctan2(gripper_pose[2], xy_norm)
+        return angle
+    
+    while True:
+        if touch_engaged:
+            with lock:
+                left_point   = current_3d_points[0]
+                center_point = current_3d_points[1]
+                right_point  = current_3d_points[2]
+
+            # Compute gripper pose (bisector of left and right unit vectors)
+            gripper_pose = ((left_point - center_point) / np.linalg.norm(left_point - center_point) +
+                            (right_point - center_point) / np.linalg.norm(right_point - center_point))
+            gripper_pose = gripper_pose / np.linalg.norm(gripper_pose)
+            
+
+            left_to_right = (right_point - left_point) / np.linalg.norm(right_point - left_point)
+
+            roll = -angle_from_y_axis(gripper_pose) + np.pi
+            yaw = -angle_from_xy_plane(gripper_pose)
+            pitch = angle_from_xy_plane(left_to_right)
+
+            # --- Calculate grasp angle ---
+            # Angle between left and right vectors (from center)
+            left_vec  = left_point - center_point
+            right_vec = right_point - center_point
+            dot_lr    = np.dot(left_vec, right_vec)
+            norm_lr   = np.linalg.norm(left_vec) * np.linalg.norm(right_vec)
+            full_angle = np.arccos(np.clip(dot_lr / norm_lr, -1.0, 1.0))
+            
+            with lock:
+                # Write computed gripper position, orientation, grasp
+                gripper_position = center_point - np.array([0, 0, 0.15])
+                gripper_orientation = np.array([roll, yaw, pitch])
+                gripper_grasp = 1.5*(full_angle/2 - np.deg2rad(15))
+        
+        time.sleep(0.01)
 
 ## ----------------------------------------------------------------------------------------------------
 # Use MuJuCo to visualize the tracked 3d points with head-tracked camera reorientation
 ## ----------------------------------------------------------------------------------------------------
 def visualize_3d():
-    global head_pitch, head_yaw
+    global head_pitch, head_yaw, gripper_position, gripper_orientation, gripper_grasp, button_engaged
     initialize_simulation(head_pitch, head_yaw)
     while True:
         # with lock: 
         #     if pedal_engaged == 1:
         #         command_robot_pose(current_3d_points, np.array([0.0, 0.01, 0.0]), head_pitch, head_yaw)
-        command_sphere_position(current_3d_points, head_pitch, head_yaw)
+        with lock:
+            command_pose(gripper_position, gripper_orientation, gripper_grasp, head_pitch, head_yaw, button_engaged)
         time.sleep(0.005)
 
 ## ----------------------------------------------------------------------------------------------------
@@ -249,22 +327,25 @@ def head_track():
 # USB serial link with microcontroller device
 ## ----------------------------------------------------------------------------------------------------
 def serial_in():
-    global pedal_engaged, touch_engaged
+    global button_engaged, touch_engaged, relay_engaged
 
-    ser = serial.Serial('COM9',9600, timeout = 0.25) # for windows comx is the port but on linux this is /dev/ttyusbx 
-    time.sleep(2) #wait for serial port to open and connection to be established 
+    ser = serial.Serial('COM11', 9600, timeout=0.25)
+    time.sleep(2)  # wait for serial port to open
 
     while True:
         if ser.in_waiting > 0:
             deviceList = espStatus(ser)
-            pedal1 = deviceList["Pedal 1"] 
+            button = deviceList["button"]
             touch = deviceList["touch"]
-            # potentiometer = deviceList["pot"]
         with lock:
-            pedal_engaged = int(pedal1[0])
+            button_engaged = int(button[0])
             touch_engaged = int(touch[0])
-            # pot_value = int(potentiometer[0])
-        # print(pedal_engaged)
+            # Send a command message with the "CMD:" marker and newline.
+            if relay_engaged:
+                # print("engaged")
+                ser.write(b"CMD:1\n")
+            else:
+                ser.write(b"CMD:0\n")
         time.sleep(0.01)
 
 ## ----------------------------------------------------------------------------------------------------
@@ -331,7 +412,7 @@ def read_RFID():
     The RFID reader types the tag and sends 'enter' at the end.
     When 'enter' is detected, the accumulated tag is stored in current_user.
     """
-    global current_user, NateLimGreeting
+    global current_user, relay_engaged
     tag = ""
     while True:
         event = keyboard.read_event()  # Blocks until an event occurs
@@ -339,19 +420,38 @@ def read_RFID():
             if event.name == "enter":
                 with lock:
                     current_user = tag
-                print("RFID Tag Read:", tag)
-                if tag == "0013912256":
-                    # play(NateLimGreeting)
-                    subprocess.run(["ffplay", "-nodisp", "-autoexit", "./Q2_Prototypes/FUNCTIONAL_SYSTEM/NateLim.m4a"])
-                tag = ""
+                    tag = ""
+                print("RFID Tag Read:", current_user)
+                if current_user in identity_dict:
+                    with lock:
+                        relay_engaged = True
+                    play_audio(identity_dict[current_user]["audio"])
             else:
                 # Append single-character key names to tag.
                 # This assumes the RFID sends characters like '1','2', etc.
                 if len(event.name) == 1:
                     tag += event.name
 
+## ----------------------------------------------------------------------------------------------------
+# Monitor touch to turn off relay
+## ----------------------------------------------------------------------------------------------------
+def touch_timeout():
+    global touch_engaged, relay_engaged
+    last_touch_time = time.time()
+    while True:
+        # If the touch sensor is active, update the timestamp.
+        if touch_engaged:
+            last_touch_time = time.time()
+        else:
+            # If touch_engaged remains False for 5 seconds, disable the relay.
+            if time.time() - last_touch_time >= 5:
+                relay_engaged = False
+        time.sleep(0.1)  # Check every 100 ms
+
 # Get connected devices
-available_devices = dai.Device.getAllAvailableDevices()
+# available_devices = dai.Device.getAllAvailableDevices()
+available_devices = sorted(dai.Device.getAllAvailableDevices(), key=lambda d: d.getMxId()) # Sort by ID for consistent order
+
 if len(available_devices) < 2:
     print("Error: Less than two OAK-D cameras connected.")
 else:
@@ -359,24 +459,31 @@ else:
 
     # Start camera threads
     for i, device_info in enumerate(available_devices[:2]):
-        thread = threading.Thread(target=process_camera, args=(device_info, i))
+        if device_info.getMxId() == "19443010714E1C1300": # camera 1
+            thread = threading.Thread(target=process_camera, args=(device_info, 0))
+        elif device_info.getMxId() == "19443010719F181300": # camera 2
+            thread = threading.Thread(target=process_camera, args=(device_info, 1))
         threads.append(thread)
         thread.start()
 
     # Start triangulation and visualization threads
     triangulation_thread = threading.Thread(target=triangulate)
+    gripper_pose_thread = threading.Thread(target=calculate_gripper_pose)
     head_tracking_thread = threading.Thread(target=head_track)
     visualization_thread = threading.Thread(target=visualize_3d)
-    # serial_thread = threading.Thread(target = serial_in)
+    serial_thread = threading.Thread(target = serial_in)
     GUI_thread = threading.Thread(target = update_gui)
     RFID_thread = threading.Thread(target=read_RFID)
+    monitor_thread = threading.Thread(target=touch_timeout)
 
+    gripper_pose_thread.start()
     triangulation_thread.start()
     head_tracking_thread.start()
     visualization_thread.start()
-    # serial_thread.start()
+    serial_thread.start()
     GUI_thread.start()
     RFID_thread.start()
+    monitor_thread.start()
 
     # Display loop
     while True:

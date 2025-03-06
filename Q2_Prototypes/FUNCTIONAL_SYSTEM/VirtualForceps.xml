@@ -1,0 +1,88 @@
+<mujoco model="VirtualForceps">
+    <visual>
+        <map force="0.1" zfar="30"/>
+        <rgba haze="0.15 0.25 0.35 1"/>
+        <global offwidth="2560" offheight="1440" elevation="-20" azimuth="120"/>
+    </visual>
+
+    <option timestep="0.001"/>
+
+    <statistic center="0 0 0.7"/>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
+        <texture name="body" type="cube" builtin="flat" mark="cross" width="128" height="128" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1"/>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".5 .5 .5" rgb2=".75 .75 .75"/>
+        <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance="0"/>
+    
+        <mesh name="wrist_mesh" file="fenestrated_forceps/wrist.stl"/>
+        <mesh name="left_mesh" file="fenestrated_forceps/left_jaw.stl"/>
+        <mesh name="right_mesh" file="fenestrated_forceps/right_jaw.stl"/>
+    </asset>
+
+    <worldbody>
+        <!-- Ground plane -->
+        <geom name="floor" size="0 0 0.05" pos="0 0 0" type="plane" material="grid" contype="5" condim="3"/>
+        
+        <!-- Directional light source -->
+        <light directional="true" pos="0 0 5" dir="0 0 -1"/>
+
+        <!-- Free-floating forcep model -->
+        <body name="forceps" pos="0 0 0">
+            <!-- Slider joints for x, y, z position -->
+            <joint name="forcep_x" type="slide" axis="1 0 0" damping="10"/>
+            <joint name="forcep_y" type="slide" axis="0 1 0" damping="10"/>
+            <joint name="forcep_z" type="slide" axis="0 0 1" damping="10"/>
+
+            <!-- Hinge joints for RPY (intrinsic euler) orientation -->
+            <joint name="forcep_roll" type="hinge" pos="0 0.04 0" axis="0 0 1" damping="10"/>
+            <joint name="forcep_yaw" type="hinge" pos="0 0.04 0" axis="1 0 0" damping="10"/>
+            <joint name="forcep_pitch" type="hinge" axis="0 1 0" damping="10"/>
+
+            <body name="wrist" pos="0 0 0">
+                <geom type="mesh" mesh="wrist_mesh" mass="0.05" pos="0 0 0" rgba="1 0.2 0.2 1"/>
+                <body name="left_grip" pos="0 0 0">
+                    <joint name="left_grip" type="hinge" pos="0 0.02 0" axis="0 0 1" damping="10"/>
+                    <geom type="mesh" mesh="left_mesh" mass="0.05" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
+                </body>
+                <body name="right_grip" pos="0 0 0">
+                    <joint name="right_grip" type="hinge" pos="0 0.02 0" axis="0 0 1" damping="10"/>
+                    <geom type="mesh" mesh="right_mesh" mass="0.05" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
+                </body>
+            </body>
+        </body>
+
+        <body name="cube1" pos="0.04 0.0 0.5">
+            <!-- Free joint allows full 6-DOF movement -->
+            <freejoint name="free_cube_joint1"/>
+            <!-- Cube geometry with green color -->
+            <geom name="cube1" type="box" size="0.01 0.02 0.01" rgba="0 1 0 1" density="10000" conaffinity="1" friction="1 0.5 0.1"/>
+        </body>
+        <body name="cube2" pos="0.0 0.0 0.5">
+            <!-- Free joint allows full 6-DOF movement -->
+            <freejoint name="free_cube_joint2"/>
+            <!-- Cube geometry with green color -->
+            <geom name="cube2" type="box" size="0.01 0.02 0.01" rgba="1 1 0 1" density="10000" conaffinity="1" friction="1 0.5 0.1"/>
+        </body>
+        <body name="cube3" pos="-0.04 0.0 0.5">
+            <!-- Free joint allows full 6-DOF movement -->
+            <freejoint name="free_cube_joint3"/>
+            <!-- Cube geometry with green color -->
+            <geom name="cube3" type="box" size="0.01 0.02 0.01" rgba="0 1 1 1" density="10000"conaffinity="1" friction="1 0.5 0.1"/>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <!-- Position actuators for each slider joint -->
+        <position name="x_pos" joint="forcep_x" kp="100" forcelimited="true" forcerange="-50 50"/>
+        <position name="y_pos" joint="forcep_y" kp="100" forcelimited="true" forcerange="-50 50"/>
+        <position name="z_pos" joint="forcep_z" kp="100" forcelimited="true" forcerange="-50 50"/>
+
+        <position name="roll" joint="forcep_roll" kp="100" forcelimited="true" forcerange="-100 100"/>
+        <position name="yaw" joint="forcep_yaw" kp="100" forcelimited="true" forcerange="-100 100"/>
+        <position name="pitch" joint="forcep_pitch" kp="100" forcelimited="true" forcerange="-100 100"/>
+
+        <position name="left_grip" joint="left_grip" kp="100" forcelimited="true" forcerange="-50 50"/>
+        <position name="right_grip" joint="right_grip" kp="100" forcelimited="true" forcerange="-50 50"/>
+    </actuator>
+</mujoco>

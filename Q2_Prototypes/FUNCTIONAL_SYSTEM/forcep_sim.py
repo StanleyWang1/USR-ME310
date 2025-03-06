@@ -19,18 +19,18 @@ def initialize_simulation(head_pitch, head_yaw):
     global viewer, model, data
 
     # Load the model from XML string (or path to XML file)
-    xml_path = "./Q2_Prototypes/FUNCTIONAL_SYSTEM/robot.xml"
+    xml_path = "./Q2_Prototypes/FUNCTIONAL_SYSTEM/VirtualForceps.xml"
     model = mujoco.MjModel.from_xml_path(xml_path)
     data = mujoco.MjData(model)
 
     # Launch the passive viewer
     viewer = launch_passive(model, data)
     
-    viewer.cam.azimuth = 90+head_yaw   # Rotation around the Z-axis (degrees)
-    viewer.cam.elevation = head_pitch  # Up/Down tilt angle
-    viewer.cam.distance = 1.0  # Distance from the model
+    viewer.cam.azimuth = 90   # Rotation around the Z-axis (degrees)
+    viewer.cam.elevation = -45  # Up/Down tilt angle
+    viewer.cam.distance = 0.5  # Distance from the model
 
-def command_sphere_position(point_positions, head_pitch, head_yaw):
+def command_pose(position, orientation, grasp, head_pitch, head_yaw, button_engaged):
     """
     Commands the sphere to specified x, y, z positions using slider joints.
     The viewer is synchronized after each step.
@@ -45,25 +45,33 @@ def command_sphere_position(point_positions, head_pitch, head_yaw):
     if viewer is None:
         raise RuntimeError("Simulation has not been initialized. Call `initialize_simulation()` first.")
 
-    # Update control inputs for the actuators
-    data.ctrl[0] = point_positions[0][0] # Target position for x-axis
-    data.ctrl[1] = point_positions[0][1] + y_offset # Target position for y-axis
-    data.ctrl[2] = point_positions[0][2] + z_offset  # Target position for z-axis
+    # Position Control
+    data.ctrl[0] = position[0] # x
+    data.ctrl[1] = position[1] # y
+    data.ctrl[2] = position[2] # z
 
-    data.ctrl[3] = point_positions[1][0]  # Target position for x-axis
-    data.ctrl[4] = point_positions[1][1] + y_offset  # Target position for y-axis
-    data.ctrl[5] = point_positions[1][2] + z_offset  # Target position for z-axis
+    # Orientation Control
+    data.ctrl[3] = orientation[0] # roll
+    data.ctrl[4] = orientation[1] # yaw
+    data.ctrl[5] = orientation[2] # pitch
 
-    data.ctrl[6] = point_positions[2][0]  # Target position for x-axis
-    data.ctrl[7] = point_positions[2][1] + y_offset  # Target position for y-axis
-    data.ctrl[8] = point_positions[2][2] + z_offset  # Target position for z-axis
+    # Gripper Control
+    data.ctrl[6] = grasp
+    data.ctrl[7] = -grasp
+
     # Step the simulation and sync the viewer
-    mujoco.mj_step(model, data)
+    for _ in range(5):
+        mujoco.mj_step(model, data)
     
-    viewer.cam.azimuth = 90+head_yaw   # Rotation around the Z-axis (degrees)
-    viewer.cam.elevation = head_pitch  # Up/Down tilt angle
-    viewer.cam.distance = 1.0  # Distance from the model
+    if button_engaged:
+        viewer.cam.azimuth = 90+head_yaw   # Rotation around the Z-axis (degrees)
+        viewer.cam.elevation = head_pitch  # Up/Down tilt angle
+        viewer.cam.distance = 0.5  # Distance from the model
     
+    # viewer.cam.azimuth = 90   # Rotation around the Z-axis (degrees)
+    # viewer.cam.elevation = -45  # Up/Down tilt angle
+    # viewer.cam.distance = 0.5  # Distance from the model
+
     viewer.sync()
 
 
@@ -97,7 +105,7 @@ def main():
             [base_positions[1][0] + offset, base_positions[1][1] + offset, base_positions[1][2] + offset],
             [base_positions[2][0] + offset, base_positions[2][1] + offset, base_positions[2][2] + offset]
         ]
-        command_sphere_position(dynamic_positions, head_pitch=20, head_yaw=0)
+        command_pose(dynamic_positions, head_pitch=20, head_yaw=0)
         time.sleep(0.05)
 
     # Clean up and close the simulation
