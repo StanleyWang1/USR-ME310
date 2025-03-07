@@ -10,23 +10,30 @@ K = np.array([
 K_inv = np.linalg.inv(K)
 
 # Camera extrinsic poses
-h = 0.750  # [m]
-w = 0.750  # [m]
+h = 0.8  # [m]
+w = 0.711  # [m]
 theta = np.deg2rad(60)  # [deg]
 
-R_1 = np.array([
-    [0, -np.sin(theta), np.cos(theta)],
-    [-1, 0, 0],
-    [0, -np.cos(theta), -np.sin(theta)]
-])
+# R_1 = np.array([
+#     [0, -np.sin(theta), np.cos(theta)],
+#     [-1, 0, 0],
+#     [0, -np.cos(theta), -np.sin(theta)]
+# ])
+sr2 = 1/np.sqrt(2)
+R_1 = np.array([[-sr2, 0, sr2],
+                [0, 1, 0],
+                [-sr2, 0, -sr2]])
 t_1 = np.array([[-w / 2], [0], [h]])
 W_T_C1 = np.block([[R_1, t_1], [np.zeros((1, 3)), 1]])
 
-R_2 = np.array([
-    [0, np.sin(theta), -np.cos(theta)],
-    [1, 0, 0],
-    [0, -np.cos(theta), -np.sin(theta)]
-])
+# R_2 = np.array([
+#     [0, np.sin(theta), -np.cos(theta)],
+#     [1, 0, 0],
+#     [0, -np.cos(theta), -np.sin(theta)]
+# ])
+R_2 = np.array([[-sr2, 0, -sr2],
+                [0, 1, 0],
+                [sr2, 0, -sr2]])
 t_2 = np.array([[w / 2], [0], [h]])
 W_T_C2 = np.block([[R_2, t_2], [np.zeros((1, 3)), 1]])
 

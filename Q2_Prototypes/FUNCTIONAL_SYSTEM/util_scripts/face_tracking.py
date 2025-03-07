@@ -14,7 +14,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Open webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 while cap.isOpened():
     ret, frame = cap.read()

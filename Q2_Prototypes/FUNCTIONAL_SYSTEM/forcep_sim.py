@@ -9,8 +9,8 @@ model = None
 data = None
 
 # Offset to shift gripper slightly in Z
-y_offset = -0.05
-z_offset = -0.1 # [m]
+y_offset = 0.0
+z_offset = -0.025 # [m]
 
 def initialize_simulation(head_pitch, head_yaw):
     """
@@ -64,8 +64,10 @@ def command_pose(position, orientation, grasp, head_pitch, head_yaw, button_enga
         mujoco.mj_step(model, data)
     
     if button_engaged:
+        # pass
+        print(head_pitch)
         viewer.cam.azimuth = 90+head_yaw   # Rotation around the Z-axis (degrees)
-        viewer.cam.elevation = head_pitch  # Up/Down tilt angle
+        viewer.cam.elevation = head_pitch+30 # Up/Down tilt angle
         viewer.cam.distance = 0.5  # Distance from the model
     
     # viewer.cam.azimuth = 90   # Rotation around the Z-axis (degrees)

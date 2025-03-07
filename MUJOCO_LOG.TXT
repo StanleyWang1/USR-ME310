@@ -205,3 +205,81 @@ WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstabl
 Wed Mar  5 22:24:49 2025
 WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 7.0000.
 
+Thu Mar  6 15:53:27 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 5.1450.
+
+Thu Mar  6 15:53:33 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 7.3550.
+
+Thu Mar  6 15:55:47 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.6950.
+
+Thu Mar  6 15:58:06 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.7050.
+
+Thu Mar  6 15:58:12 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 19. The simulation is unstable. Time = 2.6370.
+
+Thu Mar  6 16:05:40 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 19. The simulation is unstable. Time = 9.0160.
+
+Thu Mar  6 16:05:57 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.7400.
+
+Thu Mar  6 16:06:36 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.5950.
+
+Thu Mar  6 16:06:40 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 2.1180.
+
+Thu Mar  6 16:07:18 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 1.3550.
+
+Thu Mar  6 16:08:31 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 1.4000.
+
+Thu Mar  6 16:08:33 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 19. The simulation is unstable. Time = 2.1710.
+
+Thu Mar  6 16:09:58 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 2.0450.
+
+Thu Mar  6 16:21:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 1.2050.
+
+Thu Mar  6 16:28:26 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.8500.
+
+Thu Mar  6 16:28:33 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 3.2240.
+
+Thu Mar  6 17:22:06 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 6.1150.
+
+Thu Mar  6 17:23:53 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 11. The simulation is unstable. Time = 40.1860.
+
+Thu Mar  6 17:35:40 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 153.8350.
+
+Thu Mar  6 17:35:47 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 156.1160.
+
+Thu Mar  6 17:51:07 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 4.5700.
+
+Thu Mar  6 17:54:34 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.9800.
+
+Thu Mar  6 17:54:55 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 7.7610.
+
+Thu Mar  6 18:08:14 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 5. The simulation is unstable. Time = 153.9700.
+
+Thu Mar  6 18:12:20 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 11.5100.
+
+Thu Mar  6 18:12:22 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 17. The simulation is unstable. Time = 12.3060.
+

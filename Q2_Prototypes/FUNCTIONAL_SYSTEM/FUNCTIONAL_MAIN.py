@@ -329,7 +329,7 @@ def head_track():
 def serial_in():
     global button_engaged, touch_engaged, relay_engaged
 
-    ser = serial.Serial('COM11', 9600, timeout=0.25)
+    ser = serial.Serial('COM13', 9600, timeout=0.25)
     time.sleep(2)  # wait for serial port to open
 
     while True:
