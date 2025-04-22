@@ -10,7 +10,7 @@ data = None
 
 # Offset to shift gripper slightly in Z
 y_offset = 0.0
-z_offset = -0.025 # [m]
+z_offset = 0.2 # [m] positive is shifting DOWNWARDS
 
 def initialize_simulation(head_pitch, head_yaw):
     """
@@ -47,8 +47,8 @@ def command_pose(position, orientation, grasp, head_pitch, head_yaw, button_enga
 
     # Position Control
     data.ctrl[0] = position[0] # x
-    data.ctrl[1] = position[1] # y
-    data.ctrl[2] = position[2] # z
+    data.ctrl[1] = position[1] + y_offset # y
+    data.ctrl[2] = position[2] + z_offset # z
 
     # Orientation Control
     data.ctrl[3] = orientation[0] # roll

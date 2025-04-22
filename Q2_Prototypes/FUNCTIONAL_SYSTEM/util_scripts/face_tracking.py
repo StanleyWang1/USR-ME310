@@ -14,7 +14,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Open webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -77,7 +77,7 @@ while cap.isOpened():
                 # Draw a line from the nose tip to the projected point
                 p1 = (int(image_points[0][0]), int(image_points[0][1]))
                 p2 = (int(nose_end_point2D[0][0][0]), int(nose_end_point2D[0][0][1]))
-                cv2.line(frame, p1, p2, (255, 0, 0), 2)
+                # cv2.line(frame, p1, p2, (255, 0, 0), 2)
                 
                 # Convert rotation vector to rotation matrix
                 rotation_mat, _ = cv2.Rodrigues(rotation_vector)

@@ -10,8 +10,11 @@ K = np.array([
 K_inv = np.linalg.inv(K)
 
 # Camera extrinsic poses
-h = 0.8  # [m]
-w = 0.711  # [m]
+# h = 0.8  # [m]
+# w = 0.711  # [m]
+h = 1 # UNAM setup
+w = 0.876 # UNAM setup
+
 theta = np.deg2rad(60)  # [deg]
 
 # R_1 = np.array([

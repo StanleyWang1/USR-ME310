@@ -39,7 +39,7 @@ gripper_orientation = np.zeros((3,))
 gripper_grasp = 0
 
 # Global variables for tracked head pose
-head_pitch = 0 
+head_pitch = 0
 head_yaw = 0 
 
 # Global variable for surgeon identity
@@ -242,7 +242,7 @@ def triangulate():
 # Triangulate 3D Coordinates of known markers from 2D pixel coordinates
 ## ----------------------------------------------------------------------------------------------------
 def calculate_gripper_pose():
-    global current_3d_points, gripper_position, gripper_orientation, gripper_grasp, touched_engaged
+    global current_3d_points, gripper_position, gripper_orientation, gripper_grasp, touch_engaged
 
     def angle_from_y_axis(gripper_pose):
         x, y = gripper_pose[0], gripper_pose[1]
@@ -329,7 +329,7 @@ def head_track():
 def serial_in():
     global button_engaged, touch_engaged, relay_engaged
 
-    ser = serial.Serial('COM13', 9600, timeout=0.25)
+    ser = serial.Serial('COM5', 9600, timeout=0.25)
     time.sleep(2)  # wait for serial port to open
 
     while True:
@@ -466,7 +466,7 @@ else:
         threads.append(thread)
         thread.start()
 
-    # Start triangulation and visualization threads
+    # Start all other threads
     triangulation_thread = threading.Thread(target=triangulate)
     gripper_pose_thread = threading.Thread(target=calculate_gripper_pose)
     head_tracking_thread = threading.Thread(target=head_track)

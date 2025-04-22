@@ -1,0 +1,35 @@
+Camera Positioning
+
+Assume 6 markers tracked by 4 cameras
+
+The network architecture for input/output data becomes:
+
+{(c1_p1_x, c1_p1_y), (c2_p1_x, c2_p1_y), (c3_p1_x, c3_p1_y), (c4_p1_x, c4_p1_y),
+(c1_p2_x, c1_p2_y), (c2_p2_x, c2_p2_y), (c3_p2_x, c3_p2_y), (c4_p2_x, c4_p2_y),
+(c1_p3_x, c1_p3_y), (c2_p3_x, c2_p3_y), (c3_p3_x, c3_p3_y), (c4_p3_x, c4_p3_y), 
+(c1_p4_x, c1_p4_y), (c2_p4_x, c2_p4_y), (c3_p4_x, c3_p4_y), (c4_p4_x, c4_p4_y),
+(c1_p5_x, c1_p5_y), (c2_p5_x, c2_p5_y), (c3_p5_x, c3_p5_y), (c4_p5_x, c4_p5_y),
+(c1_p6_x, c1_p6_y), (c2_p6_x, c2_p6_y), (c3_p6_x, c3_p6_y), (c4_p6_x, c4_p6_y)} --network--> {x, y, z, Rx, Ry, Rz, g}
+
+48 dimension input vector --> 7 dimension output vector
+
+What if there are occlusions? Each camera is NOT guaranteed to see all points simultaneously
+    - Could set pixel coordinates to -1? Flag for network to ignore?
+    - Could add an initial variable for average blob brightness assuming we must yield 6 points?
+    - This can potentially be captured by creating artificial occlusions in training data
+
+The model must also be order agnostic
+    - There is no inherent meaning in the order of points in the input vector 
+    - i.e. if I switched any two points in any camera, the output should not change
+    - This can potentially be captured by artifical point switching in training data
+
+What type of network architecture is best for this?
+    - Compared to RAW image data the input vector is relatively lightweight
+    - Is it better to feed in the raw images to a (CNN?) instead of extracting blobs with OpenCV?
+    - The output here is continuous (not like classification) which may also be tricky?
+
+Data normalization is also an issue
+    - pixel coordinates are bounded by 640x360 --> may need to scale from 0 to 1
+    - output gripper pose is bounded by workspace limits --> this can vary and is trickier to normalize
+    - 
+
